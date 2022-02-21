@@ -26,6 +26,7 @@ namespace QuillBot {
             String output = "TESTBOOL is now " + GlobalVariables.TESTBOOL;
             return ReplyAsync(output);
         }
+        
         [Command("info")]
         [Summary("Displays command list.")]
         public Task ReturnInfo() {
