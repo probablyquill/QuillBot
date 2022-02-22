@@ -41,6 +41,8 @@ namespace QuillBot {
             //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             Task timerTask = GetGuilds(CollectGuildInfo, TimeSpan.FromMinutes(5), tokenSource.Token);
+            CancellationTokenSource leagueBanToken = new CancellationTokenSource();
+            Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(5), tokenSource.Token);
 
             //Wait indefinitely
             await Task.Delay(-1);
@@ -98,6 +100,16 @@ namespace QuillBot {
             Global.GuildList = temp;
             Global.ListGuilds();
             Global.UpdateDict();
+        }
+
+        private void LeagueBanCheck() {
+            foreach (var guild in _client.Guilds) {
+                foreach(var user in guild.Users) {
+                    if (user.Activities != null) {
+                        Console.WriteLine("User: " + user + " is playing " + user.Activities);
+                    }
+                }
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 namespace QuillBot {
     public static class Global {
         public static Boolean TESTBOOL = false;
+        public static Boolean LeagueBas = false;
         public static Dictionary<String, Boolean> ServerSearchList = new Dictionary<String, Boolean>{};
 
         public static System.Collections.Generic.IReadOnlyCollection<Discord.WebSocket.SocketGuild> GuildList;
@@ -21,11 +22,10 @@ namespace QuillBot {
         }
 
         //Update the ID:Boolean
+        //Funny one line loop (make readable later)
         public static void UpdateDict() {
-            foreach (var guild in GuildList) {
-                if (!ServerSearchList.ContainsKey(guild.Id.ToString())) ServerSearchList.Add(guild.Id.ToString(), false);
+            foreach (var guild in GuildList) if (!ServerSearchList.ContainsKey(guild.Id.ToString())) ServerSearchList.Add(guild.Id.ToString(), false); 
             }
-        }
 
         //Prints out a list of the guilds which the bot is in.
         public static void ListGuilds() {
