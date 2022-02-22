@@ -40,7 +40,7 @@ namespace QuillBot {
 
             //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
             CancellationTokenSource tokenSource = new CancellationTokenSource();
-            Task timerTask = GetGuilds(CollectGuildInfo, TimeSpan.FromMinutes(3), tokenSource.Token);
+            Task timerTask = GetGuilds(CollectGuildInfo, TimeSpan.FromMinutes(5), tokenSource.Token);
 
             //Wait indefinitely
             await Task.Delay(-1);
@@ -97,6 +97,7 @@ namespace QuillBot {
             System.Collections.Generic.IReadOnlyCollection<Discord.WebSocket.SocketGuild> temp = _client.Guilds;
             Global.GuildList = temp;
             Global.ListGuilds();
+            Global.UpdateDict();
         }
     }
 }

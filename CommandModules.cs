@@ -32,6 +32,7 @@ namespace QuillBot {
         public Task ReturnInfo() {
             String output = 
                 "__Commands__:\n\n**$say** => Have the bot echo whatever was typed after 'say'.\n\n**$trackerToggle** => Toggle Online percentage status for this server.";
+            output += "\n\n$info => Displays this menu";
             output += "\n\nContact: quillbot@probablyquill.com";
             return ReplyAsync(output);
         }
