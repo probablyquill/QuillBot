@@ -13,7 +13,8 @@ namespace QuillBot {
     class QuillBot {
         public static Task Main(string[] args) => new QuillBot().MainAsync();
 
-        DiscordSocketClient _client = new DiscordSocketClient(); 
+        DiscordSocketConfig config = new DiscordSocketConfig();
+        DiscordSocketClient _client = new DiscordSocketClient(new DiscordSocketConfig(){AlwaysDownloadUsers = true, GatewayIntents = GatewayIntents.All});
 
         public async Task MainAsync() {
             //Load API auth Token from file.
@@ -39,10 +40,10 @@ namespace QuillBot {
             await commandHandler.InstallCommandsAsync();
 
             //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
-            CancellationTokenSource tokenSource = new CancellationTokenSource();
-            Task timerTask = GetGuilds(CollectGuildInfo, TimeSpan.FromMinutes(5), tokenSource.Token);
-            CancellationTokenSource leagueBanToken = new CancellationTokenSource();
-            Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(5), tokenSource.Token);
+            //CancellationTokenSource tokenSource = new CancellationTokenSource();
+            //Task timerTask = GetGuilds(CollectGuildInfo, TimeSpan.FromMinutes(5), tokenSource.Token);
+            //CancellationTokenSource leagueBanToken = new CancellationTokenSource();
+            //Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(.5), leagueBanToken.Token);
 
             //Wait indefinitely
             await Task.Delay(-1);
@@ -104,9 +105,34 @@ namespace QuillBot {
 
         private void LeagueBanCheck() {
             foreach (var guild in _client.Guilds) {
+                Console.WriteLine(guild + "\n");
                 foreach(var user in guild.Users) {
-                    if (user.Activities != null) {
-                        Console.WriteLine("User: " + user + " is playing " + user.Activities);
+                    Boolean LeagueFound = false;
+
+                    foreach (var activity in user.Activities) {
+                        if (activity.Name.ToLower() == "league of legends") {
+                            LeagueFound = true;
+                            if (Global.UserWarningList.ContainsKey(user.Id)) {
+                                long currentTime = DateTime.Now.ToFileTime();
+
+                                //This doesn't actually work quite right as ToFileTime returns a long which measures in 
+                                //100ns segments for some reason.
+                                if (currentTime - Global.UserWarningList[user.Id] >= 30) {
+                                    Console.WriteLine("Banned " + user.DisplayName);
+                                    guild.GetTextChannel(826876630147923999).SendMessageAsync(user.DisplayName + ", You were warned, begone.");
+                                }
+                            } else {
+                                Global.UserWarningList.Add(user.Id, DateTime.Now.ToFileTime());
+                                Console.WriteLine("Warning " + user.DisplayName);
+                                guild.GetTextChannel(826876630147923999).SendMessageAsync(user.DisplayName + ", you have 30 seconds to get and stay off before you're banned for playing league.");
+                            }   
+                        }
+                    }
+                    
+                    if (LeagueFound == false ) {
+                            if (Global.UserWarningList.ContainsKey(user.Id)) {
+                                Global.UserWarningList.Remove(user.Id);
+                            }
                     }
                 }
             }

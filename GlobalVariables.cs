@@ -8,6 +8,7 @@ namespace QuillBot {
         public static Boolean TESTBOOL = false;
         public static Boolean LeagueBas = false;
         public static Dictionary<String, Boolean> ServerSearchList = new Dictionary<String, Boolean>{};
+        public static Dictionary<ulong, long> UserWarningList = new Dictionary<ulong, long>{};
 
         public static System.Collections.Generic.IReadOnlyCollection<Discord.WebSocket.SocketGuild> GuildList;
     
@@ -16,7 +17,6 @@ namespace QuillBot {
             if(!File.Exists("config/enabledServers.json")) File.Create("config/enabledServers.json");
             String enabledServers = File.ReadAllText("config/enabledServers.json");
             if(enabledServers != "") ServerSearchList = JsonSerializer.Deserialize<Dictionary<String, Boolean>>(enabledServers);
-
             //Come back to
             Console.WriteLine(ServerSearchList);
         }
