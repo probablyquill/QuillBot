@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using System.Data.SQLite;
 using System.Threading.Tasks;
 using System.Reflection;
 
@@ -12,10 +13,9 @@ using Discord.WebSocket;
 namespace QuillBot {
     class QuillBot {
         public static Task Main(string[] args) => new QuillBot().MainAsync();
-
-        DiscordSocketConfig config = new DiscordSocketConfig();
         DiscordSocketClient _client = new DiscordSocketClient(new DiscordSocketConfig(){AlwaysDownloadUsers = true, GatewayIntents = GatewayIntents.All});
 
+        List<ulong> WarnedUIDs = new List<ulong>{};
         public async Task MainAsync() {
             //Load API auth Token from file.
             String token = loadToken();
@@ -40,14 +40,13 @@ namespace QuillBot {
             await commandHandler.InstallCommandsAsync();
 
             //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
-            //CancellationTokenSource tokenSource = new CancellationTokenSource();
-            //Task timerTask = GetGuilds(CollectGuildInfo, TimeSpan.FromMinutes(5), tokenSource.Token);
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            Task timerTask = WaitFirst(PollUserStatus, TimeSpan.FromMinutes(.25), tokenSource.Token);
             //CancellationTokenSource leagueBanToken = new CancellationTokenSource();
             //Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(.5), leagueBanToken.Token);
 
             //Wait indefinitely
             await Task.Delay(-1);
-            
         }
 
         //Idk
@@ -56,11 +55,19 @@ namespace QuillBot {
             return Task.CompletedTask;
         }
 
-        //Template for having a piece of code execute once every X minutes after its last run finished.
-        private async Task XMinuteDelay(Action action, TimeSpan interval, CancellationToken token) {
+        //Calls a method, then waits x amount of time after it completes to do it again.
+        private async Task WaitAfter(Action action, TimeSpan interval, CancellationToken token) {
             while (true) {
                 action();
                 await Task.Delay(interval, token);
+            }
+        }
+
+        //Waits x amount of time, then calls the method.
+        private async Task WaitFirst(Action action, TimeSpan interval, CancellationToken token) {
+            while (true) {
+                await Task.Delay(interval, token);
+                action();
             }
         }
 
@@ -83,16 +90,7 @@ namespace QuillBot {
 
                 return token;
             } catch {}
-            
             return "";
-        }
-
-        //Calls the CollectGuildInfo method every x minutes, specified by the initial Task.
-        private async Task GetGuilds(Action action, TimeSpan interval, CancellationToken token) {
-            while (true) {
-                await Task.Delay(interval, token);
-                action();
-            }
         }
 
         //Sets and outputs the GuildInfo in the Global class used for global data storage and access.
@@ -103,36 +101,47 @@ namespace QuillBot {
             Global.UpdateDict();
         }
 
+        //Joke league ban method (only sends messages in my server as-is.)
         private void LeagueBanCheck() {
             foreach (var guild in _client.Guilds) {
-                Console.WriteLine(guild + "\n");
                 foreach(var user in guild.Users) {
                     Boolean LeagueFound = false;
 
                     foreach (var activity in user.Activities) {
                         if (activity.Name.ToLower() == "league of legends") {
                             LeagueFound = true;
-                            if (Global.UserWarningList.ContainsKey(user.Id)) {
-                                long currentTime = DateTime.Now.ToFileTime();
-
-                                //This doesn't actually work quite right as ToFileTime returns a long which measures in 
-                                //100ns segments for some reason.
-                                if (currentTime - Global.UserWarningList[user.Id] >= 30) {
-                                    Console.WriteLine("Banned " + user.DisplayName);
-                                    guild.GetTextChannel(826876630147923999).SendMessageAsync(user.DisplayName + ", You were warned, begone.");
-                                }
+                            if (WarnedUIDs.Contains(user.Id)) {
+                                Console.WriteLine("Banned " + user.DisplayName);
+                                guild.GetTextChannel(826876630147923999).SendMessageAsync(user.DisplayName + ", You were warned, begone.");
                             } else {
-                                Global.UserWarningList.Add(user.Id, DateTime.Now.ToFileTime());
+                                WarnedUIDs.Add(user.Id);
                                 Console.WriteLine("Warning " + user.DisplayName);
                                 guild.GetTextChannel(826876630147923999).SendMessageAsync(user.DisplayName + ", you have 30 seconds to get and stay off before you're banned for playing league.");
                             }   
                         }
                     }
-                    
-                    if (LeagueFound == false ) {
-                            if (Global.UserWarningList.ContainsKey(user.Id)) {
-                                Global.UserWarningList.Remove(user.Id);
-                            }
+
+                    if (!LeagueFound) {
+                        if (WarnedUIDs.Contains(user.Id)) {
+                            WarnedUIDs.Remove(user.Id);
+                        }
+                    }
+                }
+            }
+        }
+        private void PollUserStatus() {
+            List<ulong> FinishedUsers = new List<ulong>{};
+            foreach(var guilds in _client.Guilds) {
+                foreach(var user in guilds.Users) {
+                    Console.WriteLine("User: " + user.DisplayName + "| Status: " + user.Status);
+                    var status = user.Status;
+
+                    if (!FinishedUsers.Contains(user.Id)) {
+                        FinishedUsers.Add(user.Id);
+
+                        //TODO: Save statuses to db
+                        //Format:
+                        // Users | Online | Offline | TimeTrackingStarted
                     }
                 }
             }
