@@ -12,7 +12,8 @@ using Discord.WebSocket;
 namespace QuillBot {
     class QuillBot {
         public static Task Main(string[] args) => new QuillBot().MainAsync();
-        public Boolean TrackingToggleTest = true;
+
+        DiscordSocketClient _client = new DiscordSocketClient(); 
 
         public async Task MainAsync() {
             //Load API auth Token from file.
@@ -24,10 +25,9 @@ namespace QuillBot {
                 System.Environment.Exit(1);
             }
 
-            //CancellationTokenSource tokenSource = new CancellationTokenSource();
-            //Task timerTask = FiveMinuteDelay(test, TimeSpan.FromMinutes(5), tokenSource.Token);
+            //Global.loadFromFile();
             
-            var _client = new DiscordSocketClient();
+            //var _client = new DiscordSocketClient();
             var _commands = new CommandService();
             CommandHandler commandHandler = new CommandHandler(_client, _commands);
             _client.Log += Log;
@@ -38,23 +38,30 @@ namespace QuillBot {
 
             await commandHandler.InstallCommandsAsync();
 
+            //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            Task timerTask = GetGuilds(CollectGuildInfo, TimeSpan.FromMinutes(3), tokenSource.Token);
+
             //Wait indefinitely
             await Task.Delay(-1);
             
         }
 
+        //Idk
         private Task Log(LogMessage message) {
             Console.WriteLine(message.ToString());
             return Task.CompletedTask;
         }
 
-        private async Task FiveMinuteDelay(Action action, TimeSpan interval, CancellationToken token) {
+        //Template for having a piece of code execute once every X minutes after its last run finished.
+        private async Task XMinuteDelay(Action action, TimeSpan interval, CancellationToken token) {
             while (true) {
                 action();
                 await Task.Delay(interval, token);
             }
         }
 
+        //Load the discord bot api token from a file in the config folder.
         private String loadToken() {
             String token;
             String path = "config/token";
@@ -66,7 +73,7 @@ namespace QuillBot {
                 //Read the file, convert the raw bytes to a string, then remove any null characters.
                 //Having the full length string from reading B results in ~1k '\0' characters being 
                 //appended to the end.
-                fs.Read(b,0,b.Length);
+                fs.Read(b, 0 ,b.Length);
                 token = temp.GetString(b);
                 token = token.Trim('\0');
                 fs.Close();
@@ -75,6 +82,21 @@ namespace QuillBot {
             } catch {}
             
             return "";
+        }
+
+        //Calls the CollectGuildInfo method every x minutes, specified by the initial Task.
+        private async Task GetGuilds(Action action, TimeSpan interval, CancellationToken token) {
+            while (true) {
+                await Task.Delay(interval, token);
+                action();
+            }
+        }
+
+        //Sets and outputs the GuildInfo in the Global class used for global data storage and access.
+        private void CollectGuildInfo() {
+            System.Collections.Generic.IReadOnlyCollection<Discord.WebSocket.SocketGuild> temp = _client.Guilds;
+            Global.GuildList = temp;
+            Global.ListGuilds();
         }
     }
 }

@@ -14,16 +14,16 @@ namespace QuillBot {
 
             //Toggle the state of the tracking variable. This will be changed to a per server basis.
             //Use JSON file and dictionaries to story servers to track?
-            switch (GlobalVariables.TESTBOOL) {
+            switch (Global.TESTBOOL) {
                 case true:
-                    GlobalVariables.TESTBOOL = false;
+                    Global.TESTBOOL = false;
                     break;
                 default:
-                    GlobalVariables.TESTBOOL = true;
+                    Global.TESTBOOL = true;
                     break;
             }
 
-            String output = "TESTBOOL is now " + GlobalVariables.TESTBOOL;
+            String output = "TESTBOOL is now " + Global.TESTBOOL;
             return ReplyAsync(output);
         }
         
