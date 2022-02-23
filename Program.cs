@@ -142,58 +142,57 @@ namespace QuillBot {
             cmd.CommandText = @"CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, userid INTEGER, online INTEGER, offline INTEGER, started INTEGER, trackingstatus INTEGER, UNIQUE(userid))";
             cmd.ExecuteNonQuery();
             
+            //Database Format:
+            // ID || User | Online | Offline | TimeTrackingStarted | Trackingstatus
+            //    || INT  | INT    | INT     | INT                 | Boolean (INT 0 or 1)
+
             foreach(var guilds in _client.Guilds) {
                 foreach(var user in guilds.Users) {
-                    cmd.CommandText = "SELECT * FROM users WHERE userid = " + user.Id;
-                    response = cmd.ExecuteReader();
+                    if (!FinishedUsers.Contains(user.Id)) {
+                        cmd.CommandText = "SELECT * FROM users WHERE userid = " + user.Id;
+                        response = cmd.ExecuteReader();
 
-                    if (response.HasRows) {
-                        response.Read();
-                        //Save found information to variables
-                        int rowID = response.GetInt32(0);
-                        int userID = response.GetInt32(1);
-                        int onlineCount = response.GetInt32(2);
-                        int offlineCount = response.GetInt32(3);
-                        int started = response.GetInt32(4);
-                        int trackingStatus = response.GetInt32(5);
-                        response.Close();
+                        if (response.HasRows) {
+                            response.Read();
+                            //Save found information to variables
+                            int rowID = response.GetInt32(0);
+                            int userID = response.GetInt32(1);
+                            int onlineCount = response.GetInt32(2);
+                            int offlineCount = response.GetInt32(3);
+                            int started = response.GetInt32(4);
+                            int trackingStatus = response.GetInt32(5);
+                            response.Close();
 
-                        //Update the online/offline element in the database based on the user's current status.
-                        cmd.CommandText = "";
-                        if (user.Status.ToString().ToLower() != "offline") {
-                            onlineCount += 1;
-                            cmd.CommandText = "UPDATE users SET online = " + onlineCount + " WHERE id = " + rowID;
+                            //Update the online/offline element in the database based on the user's current status.
+                            cmd.CommandText = "";
+                            if (user.Status.ToString().ToLower() != "offline") {
+                                onlineCount += 1;
+                                cmd.CommandText = "UPDATE users SET online = " + onlineCount + " WHERE id = " + rowID;
+                            } else {
+                                offlineCount += 1;
+                                cmd.CommandText = "UPDATE users SET offline = " + offlineCount + " WHERE id = " + rowID;
+                            }
+                            //Check number of lines saved (testing variable)
+                            linesChanged = cmd.ExecuteNonQuery();
                         } else {
-                            offlineCount += 1;
-                            cmd.CommandText = "UPDATE users SET offline = " + offlineCount + " WHERE id = " + rowID;
+                            //Create new entry in database for user.
+                            response.Close();
+                            cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
+                            cmd.Parameters.AddWithValue("@userid", user.Id);
+                            if (user.Status.ToString().ToLower() != "offline") {
+                                cmd.Parameters.AddWithValue("@online", 1);
+                                cmd.Parameters.AddWithValue("@offline", 0);
+                            } else {
+                                cmd.Parameters.AddWithValue("@online", 0);
+                                cmd.Parameters.AddWithValue("@offline", 1);
+                            }
+                            cmd.Parameters.AddWithValue("@started", 0);
+                            cmd.Parameters.AddWithValue("@trackingstatus", 1);
+                            linesChanged = cmd.ExecuteNonQuery();
                         }
-                        //Check number of lines saved (testing variable)
-                        linesChanged = cmd.ExecuteNonQuery();
-                    } else {
-                        //Create new entry in database for user.
-                        response.Close();
-                        cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
-                        cmd.Parameters.AddWithValue("@userid", user.Id);
-                        if (user.Status.ToString().ToLower() != "offline") {
-                            cmd.Parameters.AddWithValue("@online", 1);
-                            cmd.Parameters.AddWithValue("@offline", 0);
-                        } else {
-                            cmd.Parameters.AddWithValue("@online", 0);
-                            cmd.Parameters.AddWithValue("@offline", 1);
-                        }
-                        cmd.Parameters.AddWithValue("@started", 0);
-                        cmd.Parameters.AddWithValue("@trackingstatus", 1);
-                        linesChanged = cmd.ExecuteNonQuery();
+
+                        FinishedUsers.Add(user.Id);
                     }
-                    //TO DO: Repeat User handling
-                    //if (!FinishedUsers.Contains(user.Id)) {
-                        //FinishedUsers.Add(user.Id);
-
-                        //TODO: Save statuses to db
-                        //Format:
-                        // ID || User | Online | Offline | TimeTrackingStarted | Trackingstatus
-                        //    || INT  | INT    | INT     | INT                 | Boolean (INT 0 or 1)
-                    //}
                 }
             }
             con.Close();
