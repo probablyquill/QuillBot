@@ -21,7 +21,7 @@ namespace QuillBot {
             //Load API auth Token from file.
             String token = loadToken();
 
-            if (token == "" || token == "[ENTER BOT TOKEN HERE]") {
+            if (token == "" || token == "[ENTER BOT TOKEN HERE]\n") {
                 Console.WriteLine("\nToken could not be read, check the token file at \"config/token\"");
                 Console.WriteLine("If it does not exist please create a \"token\" file with no extension, and paste the token inside of it.\n");
                 System.Environment.Exit(1);
@@ -41,14 +41,12 @@ namespace QuillBot {
             await commandHandler.InstallCommandsAsync();
 
             //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
-            //CancellationTokenSource tokenSource = new CancellationTokenSource();
-            //Task timerTask = WaitFirst(PollUserStatus, TimeSpan.FromMinutes(.25), tokenSource.Token);
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            Task timerTask = WaitFirst(PollUserStatus, TimeSpan.FromMinutes(.25), tokenSource.Token);
             //CancellationTokenSource leagueBanToken = new CancellationTokenSource();
             //Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(.5), leagueBanToken.Token);
-            //PollUserStatus();
+
             //Wait indefinitely
-            SQLiteTest();
-            
             await Task.Delay(-1);
         }
 
@@ -135,61 +133,122 @@ namespace QuillBot {
         
         private void PollUserStatus() {
             List<ulong> FinishedUsers = new List<ulong>{};
-            foreach(var guilds in _client.Guilds) {
-                foreach(var user in guilds.Users) {
-                    Console.WriteLine("User: " + user.DisplayName + " | Status: " + user.Status);
-                    var status = user.Status;
-
-                    if (!FinishedUsers.Contains(user.Id)) {
-                        FinishedUsers.Add(user.Id);
-
-                        //TODO: Save statuses to db
-                        //Format:
-                        // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
-                        var con = new SQLiteConnection(UserDBLocation);
-                        String response;
-                        con.Open();
-
-                        var cmd = new SQLiteCommand(con);
-                        cmd.CommandText = @"CREATE TABLE IF NOT EXISTS users(id PRIMARY INTEGER userid, INTEGER online, INTEGER offline, INTEGER started, INTEGER trackingstatus, UNIQUE(userid))";
-                        cmd.ExecuteNonQuery();
-
-                        cmd.CommandText = "INERT INTO users(userid, online, offline, started, trackingstatus) VALUES(1, 1, 1, 1, 1)";
-                        cmd.ExecuteNonQuery();
-
-                        cmd.CommandText = "SELECT * FROM users";
-                        response = cmd.ExecuteReader().ToString();
-                        Console.WriteLine(response);
-
-                        con.Close();
-                    }
-                }
-            }
-        }
-        private void SQLiteTest() {
-             //TODO: Save statuses to db
-            //Format:
-            // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
             var con = new SQLiteConnection(UserDBLocation);
             SQLiteDataReader response;
+            int linesChanged = 0;
             con.Open();
 
             var cmd = new SQLiteCommand(con);
             cmd.CommandText = @"CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, userid INTEGER, online INTEGER, offline INTEGER, started INTEGER, trackingstatus INTEGER, UNIQUE(userid))";
             cmd.ExecuteNonQuery();
-
-            cmd.CommandText = "INSERT INTO users(userid, online, offline, started, trackingstatus) VALUES(1, 1, 1, 1, 1)";
-            cmd.ExecuteNonQuery();
-
-            cmd.CommandText = "SELECT * FROM users";
-            response = cmd.ExecuteReader();
             
+            foreach(var guilds in _client.Guilds) {
+                foreach(var user in guilds.Users) {
+                    cmd.CommandText = "SELECT * FROM users WHERE userid = " + user.Id;
+                    response = cmd.ExecuteReader();
+
+                    if (response.HasRows) {
+                        response.Read();
+                        //Save found information to variables
+                        int rowID = response.GetInt32(0);
+                        int userID = response.GetInt32(1);
+                        int onlineCount = response.GetInt32(2);
+                        int offlineCount = response.GetInt32(3);
+                        int started = response.GetInt32(4);
+                        int trackingStatus = response.GetInt32(5);
+                        response.Close();
+
+                        //Update the online/offline element in the database based on the user's current status.
+                        cmd.CommandText = "";
+                        if (user.Status.ToString().ToLower() != "offline") {
+                            onlineCount += 1;
+                            cmd.CommandText = "UPDATE users SET online = " + onlineCount + " WHERE id = " + rowID;
+                        } else {
+                            offlineCount += 1;
+                            cmd.CommandText = "UPDATE users SET offline = " + offlineCount + " WHERE id = " + rowID;
+                        }
+                        //Check number of lines saved (testing variable)
+                        linesChanged = cmd.ExecuteNonQuery();
+                    } else {
+                        //Create new entry in database for user.
+                        response.Close();
+                        cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
+                        cmd.Parameters.AddWithValue("@userid", user.Id);
+                        if (user.Status.ToString().ToLower() != "offline") {
+                            cmd.Parameters.AddWithValue("@online", 1);
+                            cmd.Parameters.AddWithValue("@offline", 0);
+                        } else {
+                            cmd.Parameters.AddWithValue("@online", 0);
+                            cmd.Parameters.AddWithValue("@offline", 1);
+                        }
+                        cmd.Parameters.AddWithValue("@started", 0);
+                        cmd.Parameters.AddWithValue("@trackingstatus", 1);
+                        linesChanged = cmd.ExecuteNonQuery();
+                    }
+                    //TO DO: Repeat User handling
+                    //if (!FinishedUsers.Contains(user.Id)) {
+                        //FinishedUsers.Add(user.Id);
+
+                        //TODO: Save statuses to db
+                        //Format:
+                        // ID || User | Online | Offline | TimeTrackingStarted | Trackingstatus
+                        //    || INT  | INT    | INT     | INT                 | Boolean (INT 0 or 1)
+                    //}
+                }
+            }
+            con.Close();
+        }
+        private void SQLiteTesting() {
+             //TODO: Save statuses to db
+            //Format:
+            // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
+            var con = new SQLiteConnection(UserDBLocation);
+            SQLiteDataReader response;
+            String output = "";
+            int linesChanged;
+            con.Open();
+
+            var cmd = new SQLiteCommand(con);
+            cmd.CommandText = "SELECT * FROM users WHERE userid = 272123456995196928";
+
+            response = cmd.ExecuteReader();
+
+            response.Read();
+
+            Console.WriteLine("ID\tUser\t\t\tOnline\tOffline\tStarted\tStatus");
+            Console.WriteLine(response.GetInt32(0) + "\t" + response.GetInt64(1) + "\t" + response.GetInt32(2) + "\t" + response.GetInt32(3) + "\t" + response.GetInt32(4) +  "\t" + response.GetInt32(5));
+
+            int rowID = response.GetInt32(0);
+            int userID = response.GetInt32(1);
+            double onlineCount = response.GetInt32(2);
+            double offlineCount = response.GetInt32(3);
+            int started = response.GetInt32(4);
+            int trackingStatus = response.GetInt32(5);
+            response.Close();
+            con.Close();
+
+            double onlineTime = 100;
+
+            if (offlineCount != 0) {
+                onlineTime = onlineCount / (offlineCount + onlineCount);
+                onlineTime = onlineTime * 100;
+            }
+
+            output += "You have been online %" + onlineTime + " of the time since tracking started.";
+            Console.WriteLine(output);
+        }
+
+        private void PrintDatabase(SQLiteCommand cmd) {
+            cmd.CommandText = "SELECT * FROM users";
+            SQLiteDataReader response = cmd.ExecuteReader();
+            
+            //Iterate through the list of found responses 
             while(response.Read()) {
-                Console.WriteLine(response.GetInt32(0) + " " + response.GetInt32(1));
+                Console.WriteLine("ID\tUser\t\t\tOnline\tOffline\tStarted\tStatus");
+                Console.WriteLine(response.GetInt32(0) + "\t" + response.GetInt64(1) + "\t" + response.GetInt32(2) + "\t" + response.GetInt32(3) + "\t" + response.GetInt32(4) +  "\t" + response.GetInt32(5));
             }
 
             response.Close();
-            con.Close();
         }
     }
 }

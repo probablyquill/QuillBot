@@ -9,12 +9,13 @@ namespace QuillBot {
         public static Boolean LeagueBas = false;
         public static Dictionary<String, Boolean> ServerSearchList = new Dictionary<String, Boolean>{};
         public static System.Collections.Generic.IReadOnlyCollection<Discord.WebSocket.SocketGuild> GuildList;
+        public static String UserDBLocation = @"URI=file:config/Users.db";
     
         //Load list of servers where user online percentage has been enabled.
         public static void LoadFromFile() {
             if(!File.Exists("config/enabledServers.json")) File.Create("config/enabledServers.json");
             String enabledServers = File.ReadAllText("config/enabledServers.json");
-            if(enabledServers != "") ServerSearchList = JsonSerializer.Deserialize<Dictionary<String, Boolean>>(enabledServers);
+            //if(enabledServers != "") ServerSearchList = JsonSerializer.Deserialize<Dictionary<String, Boolean>>(enabledServers);
             //Come back to
             Console.WriteLine(ServerSearchList);
         }
