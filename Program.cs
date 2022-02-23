@@ -14,13 +14,14 @@ namespace QuillBot {
     class QuillBot {
         public static Task Main(string[] args) => new QuillBot().MainAsync();
         DiscordSocketClient _client = new DiscordSocketClient(new DiscordSocketConfig(){AlwaysDownloadUsers = true, GatewayIntents = GatewayIntents.All});
+        String UserDBLocation = @"URI=file:config/Users.db";
 
         List<ulong> WarnedUIDs = new List<ulong>{};
         public async Task MainAsync() {
             //Load API auth Token from file.
             String token = loadToken();
 
-            if (token == "") {
+            if (token == "" || token == "[ENTER BOT TOKEN HERE]") {
                 Console.WriteLine("\nToken could not be read, check the token file at \"config/token\"");
                 Console.WriteLine("If it does not exist please create a \"token\" file with no extension, and paste the token inside of it.\n");
                 System.Environment.Exit(1);
@@ -40,12 +41,14 @@ namespace QuillBot {
             await commandHandler.InstallCommandsAsync();
 
             //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
-            CancellationTokenSource tokenSource = new CancellationTokenSource();
-            Task timerTask = WaitFirst(PollUserStatus, TimeSpan.FromMinutes(.25), tokenSource.Token);
+            //CancellationTokenSource tokenSource = new CancellationTokenSource();
+            //Task timerTask = WaitFirst(PollUserStatus, TimeSpan.FromMinutes(.25), tokenSource.Token);
             //CancellationTokenSource leagueBanToken = new CancellationTokenSource();
             //Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(.5), leagueBanToken.Token);
-
+            //PollUserStatus();
             //Wait indefinitely
+            SQLiteTest();
+            
             await Task.Delay(-1);
         }
 
@@ -129,11 +132,12 @@ namespace QuillBot {
                 }
             }
         }
+        
         private void PollUserStatus() {
             List<ulong> FinishedUsers = new List<ulong>{};
             foreach(var guilds in _client.Guilds) {
                 foreach(var user in guilds.Users) {
-                    Console.WriteLine("User: " + user.DisplayName + "| Status: " + user.Status);
+                    Console.WriteLine("User: " + user.DisplayName + " | Status: " + user.Status);
                     var status = user.Status;
 
                     if (!FinishedUsers.Contains(user.Id)) {
@@ -141,10 +145,51 @@ namespace QuillBot {
 
                         //TODO: Save statuses to db
                         //Format:
-                        // Users | Online | Offline | TimeTrackingStarted
+                        // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
+                        var con = new SQLiteConnection(UserDBLocation);
+                        String response;
+                        con.Open();
+
+                        var cmd = new SQLiteCommand(con);
+                        cmd.CommandText = @"CREATE TABLE IF NOT EXISTS users(id PRIMARY INTEGER userid, INTEGER online, INTEGER offline, INTEGER started, INTEGER trackingstatus, UNIQUE(userid))";
+                        cmd.ExecuteNonQuery();
+
+                        cmd.CommandText = "INERT INTO users(userid, online, offline, started, trackingstatus) VALUES(1, 1, 1, 1, 1)";
+                        cmd.ExecuteNonQuery();
+
+                        cmd.CommandText = "SELECT * FROM users";
+                        response = cmd.ExecuteReader().ToString();
+                        Console.WriteLine(response);
+
+                        con.Close();
                     }
                 }
             }
+        }
+        private void SQLiteTest() {
+             //TODO: Save statuses to db
+            //Format:
+            // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
+            var con = new SQLiteConnection(UserDBLocation);
+            SQLiteDataReader response;
+            con.Open();
+
+            var cmd = new SQLiteCommand(con);
+            cmd.CommandText = @"CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, userid INTEGER, online INTEGER, offline INTEGER, started INTEGER, trackingstatus INTEGER, UNIQUE(userid))";
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = "INSERT INTO users(userid, online, offline, started, trackingstatus) VALUES(1, 1, 1, 1, 1)";
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = "SELECT * FROM users";
+            response = cmd.ExecuteReader();
+            
+            while(response.Read()) {
+                Console.WriteLine(response.GetInt32(0) + " " + response.GetInt32(1));
+            }
+
+            response.Close();
+            con.Close();
         }
     }
 }
