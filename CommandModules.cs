@@ -77,8 +77,13 @@ namespace QuillBot {
                 onlineTime = onlineTime * 100;
             }
 
+            double hourtotal = 15 * onlineCount;
+            hourtotal = hourtotal / 60;
+            hourtotal = hourtotal * 100;
+            int hourInt = (int) hourtotal;
+            hourtotal = hourInt / 100;
             //Message String
-            output += "You have been online " + (int) onlineTime + "% of the time since tracking started.";
+            output += "You have been online " + (int) onlineTime + "% of the time since tracking started, or approximately " + hourtotal + " minutes.";
             return ReplyAsync(output);
         }
     }
