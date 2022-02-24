@@ -88,22 +88,21 @@ namespace QuillBot {
                         onlineTime = onlineTime * 100;
                     }
 
+                    String measurement = "hours";
+                    int hourInt;
                     double hourtotal = 15 * onlineCount;
                     hourtotal = hourtotal / (60 * 60);
-                    hourtotal = hourtotal * 100;
-                    int hourInt = (int) hourtotal;
-                    hourtotal = (double) hourInt / 100;
-                    String measurement = "hours";
 
                     //If less than one hour, read out in minutes instead.
-                    //Bad code
                     if (hourtotal < 1) {
                         hourtotal = hourtotal * 60;
-                        hourtotal = hourtotal * 100;
-                        hourInt = (int) hourtotal;
-                        hourtotal = (double) hourInt / 100;
                         measurement = "minutes";
                     }
+
+                    //Round to hundreds decimal place.
+                    hourtotal = hourtotal * 100;
+                    hourInt = (int) hourtotal;
+                    hourtotal = (double) hourInt / 100;
                     
                     //Message String
                     if (user == null) {
