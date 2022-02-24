@@ -46,7 +46,7 @@ namespace QuillBot {
         [Summary("Displays the percentage of time which the user has been online.")]
         public Task OnlineInfo(SocketUser user = null) {
             //Create database connection
-            var con = new SQLiteConnection(Global.UserDBLocation);
+            var con = new SQLiteConnection(Global.DBLocation);
             SQLiteDataReader response;
             String output = "";
             //int linesChanged;
@@ -115,7 +115,7 @@ namespace QuillBot {
         [Summary("Toggles the tracking status of the user who called it.")]
         public Task ToggleTracking() {
             //Create database connection
-            var con = new SQLiteConnection(Global.UserDBLocation);
+            var con = new SQLiteConnection(Global.DBLocation);
             SQLiteDataReader response;
             //int linesChanged;
             con.Open();

@@ -3,3 +3,4 @@ obj
 .vscode
 config/token
 config/Users.db
+config/QuillBot.db

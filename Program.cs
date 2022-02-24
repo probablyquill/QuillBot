@@ -14,7 +14,6 @@ namespace QuillBot {
     class QuillBot {
         public static Task Main(string[] args) => new QuillBot().MainAsync();
         DiscordSocketClient _client = new DiscordSocketClient(new DiscordSocketConfig(){AlwaysDownloadUsers = true, GatewayIntents = GatewayIntents.All});
-        String UserDBLocation = @"URI=file:config/Users.db";
 
         List<ulong> WarnedUIDs = new List<ulong>{};
         public async Task MainAsync() {
@@ -133,7 +132,7 @@ namespace QuillBot {
         
         private void PollUserStatus() {
             List<ulong> FinishedUsers = new List<ulong>{};
-            var con = new SQLiteConnection(UserDBLocation);
+            var con = new SQLiteConnection(Global.DBLocation);
             SQLiteDataReader response;
             int linesChanged = 0;
             con.Open();
@@ -203,7 +202,7 @@ namespace QuillBot {
              //TODO: Save statuses to db
             //Format:
             // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
-            var con = new SQLiteConnection(UserDBLocation);
+            var con = new SQLiteConnection(Global.DBLocation);
             SQLiteDataReader response;
             String output = "";
             con.Open();

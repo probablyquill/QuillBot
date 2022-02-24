@@ -9,7 +9,7 @@ namespace QuillBot {
         public static Boolean LeagueBas = false;
         public static Dictionary<String, Boolean> ServerSearchList = new Dictionary<String, Boolean>{};
         public static System.Collections.Generic.IReadOnlyCollection<Discord.WebSocket.SocketGuild> GuildList;
-        public static String UserDBLocation = @"URI=file:config/Users.db";
+        public static String DBLocation = @"URI=file:config/QuillBot.db";
     
         //Load list of servers where user online percentage has been enabled.
         public static void LoadFromFile() {
