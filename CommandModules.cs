@@ -8,35 +8,16 @@ namespace QuillBot {
         [Command("say")]
         [Summary("Echoes a message.")]
         public Task SayAsync([Remainder] [Summary("The text to echo")] String echo) => ReplyAsync(echo);
-
-        //Toggle the user online tracking function.
-        [Command("trackerToggle")]
-        [Summary("Toggles the online percentage tracker on or off.")]
-        public Task ToggleAsync() {
-
-            //Toggle the state of the tracking variable. This will be changed to a per server basis.
-            //Use JSON file and dictionaries to story servers to track?
-            switch (Global.TESTBOOL) {
-                case true:
-                    Global.TESTBOOL = false;
-                    break;
-                default:
-                    Global.TESTBOOL = true;
-                    break;
-            }
-
-            String output = "TESTBOOL is now " + Global.TESTBOOL;
-            return ReplyAsync(output);
-        }
         
         //Info Command
         [Command("info")]
         [Summary("Displays command list.")]
         public Task ReturnInfo() {
             String output = 
-                "__Commands__:\n\n**$say** => Have the bot echo whatever was typed after 'say'.\n\n**$trackerToggle** => Toggle online percentage tracking for this server (Not implemented).";
+                "__Commands__:\n**$say** => Have the bot echo whatever was typed after 'say'.\n\n**$servertoggle** => Toggle online percentage tracking for this server (Not implemented).";
             output += "\n\n**$toggle** => Toggle whether the bot will track your online status. Default is on. This is not server specific.";
             output += "\n\n**$online** => Displays the percentage of time a user has been online. Can also be called at a user, such as $online @QuillBot";
+            output += "\n\n**$drop** -> Deletes your information from the database. This includes whether you have tracking toggled on and off, and is meant for resetting stats.";
             output += "\n\n**$info** => Displays this menu";
             output += "\n\n*Contact: quill@probablyquill.com*";
             return ReplyAsync(output);
@@ -55,6 +36,19 @@ namespace QuillBot {
             //Connect to the database
             var cmd = new SQLiteCommand(con);
 
+            //Check if tracking is disabled in the server.
+            cmd.CommandText = "SELECT * FROM togglelist WHERE serverid = " + Context.Guild.Id;
+            response = cmd.ExecuteReader();
+            
+            if (response.HasRows) {
+                response.Read();
+                int allowed = response.GetInt32(2);
+                response.Close();
+                if (allowed == 0) return ReplyAsync("Sorry, tracking is disabled in this server.");
+            }
+            
+            response.Close();
+            
             //Select based on user's id
             if (user == null) {
                 cmd.CommandText = "SELECT * FROM users WHERE userid = " + Context.User.Id; 
@@ -107,6 +101,10 @@ namespace QuillBot {
                     //Message String
                     if (user == null) {
                         output += "You have been online " + (int) onlineTime + "% of the time since tracking started, approximately " + hourtotal + " " + measurement + ".";
+                        if (hourtotal == 0) {
+                            output += "\nYet you still called this command. Curious.";
+                        }
+                        
                     } else {
                         output += "" + user.Username + " has been online " + (int) onlineTime + "% of the time since tracking started, approximately " + hourtotal  + " " + measurement + ".";
                     }
@@ -173,6 +171,96 @@ namespace QuillBot {
             }
             //If the user was not found, send an error.
             return ReplyAsync("User was not found, please try again later.");
+        }
+        [Command("drop")]
+        [Summary("Removes the specified user's data.")]
+        public Task DropUser(SocketUser user = null) {
+            //Create database connection
+            var con = new SQLiteConnection(Global.DBLocation);
+            //SQLiteDataReader response;
+            //int linesChanged;
+            con.Open();
+
+            //Connect to the database
+            var cmd = new SQLiteCommand(con);
+            String output = "";
+
+            //First check: Is the user calling it without an argument, or with the argument being themself?
+            if (user == null || user.Id == Context.User.Id) {
+                cmd.CommandText = "DELETE FROM users WHERE userid = " + Context.User.Id;
+                int reply = cmd.ExecuteNonQuery();
+                switch (reply) {
+                    case 0:
+                        output += "Error: Nothing was found to delete.";
+                    break;
+                    case 1:
+                        output += "Deleted table for " + Context.User.Username;
+                        break;
+                    default:
+                        output +="Something went wrong and more than one row was deleted, I hope there's a backup.";
+                        break;
+                }
+            //If not, is it me calling it?
+            } else if ((Context.User.Id == 272123456995196928) && (user != null)){
+                cmd.CommandText = "DELETE FROM users WHERE userid = " + Context.User.Id;
+                int reply = cmd.ExecuteNonQuery();
+                switch (reply) {
+                    case 0:
+                        output += "Error: Nothing was found to delete.";
+                    break;
+                    case 1:
+                        output += "Deleted table for " + user.Username;
+                        break;
+                    default:
+                        output +="Something went wrong and more than one row was deleted, I hope there's a backup.";
+                        break;
+                }
+            //If it doesn't fit the above, then it is not allowed.
+            } else {
+                output += "Sorry, only Quill is allowed to do that.";
+            }
+            return ReplyAsync(output);
+        }
+        [Command("servertoggle")]
+        [Summary("Toggle tracking inside of the current server.")]
+        public Task ToggleServerTracking() {
+            //Create database connection
+            var con = new SQLiteConnection(Global.DBLocation);
+            SQLiteDataReader response;
+            //int linesChanged;
+            con.Open();
+
+            //Connect to the database
+            var cmd = new SQLiteCommand(con);
+            String output = "";
+
+            cmd.CommandText = "SELECT * FROM togglelist WHERE serverid = " + Context.Guild.Id;
+            response = cmd.ExecuteReader();
+
+            //Store tracking status for output
+            int tracking = 1;
+            if (response.HasRows) {
+                response.Read();
+                int rowID = response.GetInt32(0);
+                tracking = response.GetInt32(2);
+                response.Close();
+
+                switch(tracking) {
+                    case 0:
+                        output += "Tracking for this server has been enabled.";
+                        tracking = 1;
+                        break;
+                    default:
+                        output += "Tracking for this server has been disabled.";
+                        tracking = 0;
+                        break;
+                }
+
+                cmd.CommandText = "UPDATE togglelist SET toggled = " + tracking + " WHERE serverid = " + Context.Guild.Id;
+                cmd.ExecuteNonQuery();
+            }
+            return ReplyAsync(output);
+            //TODO: Add user permission checking - require administrator to change.
         }
     }
 }

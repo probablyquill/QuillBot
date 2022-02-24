@@ -44,7 +44,9 @@ namespace QuillBot {
             Task timerTask = WaitFirst(PollUserStatus, TimeSpan.FromMinutes(.25), tokenSource.Token);
             //CancellationTokenSource leagueBanToken = new CancellationTokenSource();
             //Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(.5), leagueBanToken.Token);
-
+            //SQLiteTesting();
+            //Create backup every ten minutes.
+            //Task backupTask = WaitFirst(CreateDBBackup, TimeSpan.FromMinutes(10), tokenSource.Token);
             //Wait indefinitely
             await Task.Delay(-1);
         }
@@ -129,7 +131,8 @@ namespace QuillBot {
                 }
             }
         }
-        
+
+        //Polls Status of users and keeps a list of servers for whitelist and toggle status.        
         private void PollUserStatus() {
             List<ulong> FinishedUsers = new List<ulong>{};
             var con = new SQLiteConnection(DBLocation);
@@ -138,60 +141,102 @@ namespace QuillBot {
             con.Open();
 
             var cmd = new SQLiteCommand(con);
+            //Create users table.
             cmd.CommandText = @"CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, userid INTEGER, online INTEGER, offline INTEGER, started INTEGER, trackingstatus INTEGER, UNIQUE(userid))";
             cmd.ExecuteNonQuery();
+
+            //Set up for later channel whitelisting / blacklisting
+            cmd.CommandText = @"CREATE TABLE IF NOT EXISTS togglelist(id INTEGER PRIMARY KEY, serverid INTEGER, toggled INTEGER, whitelist INTEGER, UNIQUE(serverid))";
+            cmd.ExecuteNonQuery();
             
-            //Database Format:
+            //Database Formats:
+            //Users:
             // ID || User | Online | Offline | TimeTrackingStarted | Trackingstatus
             //    || INT  | INT    | INT     | INT                 | Boolean (INT 0 or 1)
+            //
+            //togglelist:
+            // ID || serverid      | toggled | whitelist
+            //    || INT           | BOOL    | BOOL
+            //
+            //id(serverID):
+            // ID || channelid     | enabled
+            //    || INT           | BOOL
 
             foreach(var guilds in _client.Guilds) {
-                foreach(var user in guilds.Users) {
-                    if (!FinishedUsers.Contains(user.Id)) {
-                        cmd.CommandText = "SELECT * FROM users WHERE userid = " + user.Id;
-                        response = cmd.ExecuteReader();
+                //SQL gets upset if the table name is just a number, so the number is concatonated onto the id.
+                cmd.CommandText = @"CREATE TABLE IF NOT EXISTS id" + guilds.Id + "(id INTEGER PRIMARY KEY, channelid INTEGER, enabled INTEGER, whitelist INTEGER, UNIQUE(channelid))";
+                cmd.ExecuteNonQuery();
 
-                        if (response.HasRows) {
-                            response.Read();
-                            //Save found information to variables
-                            int rowID = response.GetInt32(0);
-                            int userID = response.GetInt32(1);
-                            int onlineCount = response.GetInt32(2);
-                            int offlineCount = response.GetInt32(3);
-                            int started = response.GetInt32(4);
-                            int trackingStatus = response.GetInt32(5);
-                            response.Close();
+                //Check if the guild exists in the toggle database.
+                cmd.CommandText = "SELECT * FROM togglelist WHERE serverid = " + guilds.Id;
+                response = cmd.ExecuteReader();
 
-                            if (trackingStatus != 0) {
-                                //Update the online/offline element in the database based on the user's current status.
-                                cmd.CommandText = "";
-                                if (user.Status.ToString().ToLower() != "offline") {
-                                    onlineCount += 1;
-                                    cmd.CommandText = "UPDATE users SET online = " + onlineCount + " WHERE id = " + rowID;
-                                } else {
-                                    offlineCount += 1;
-                                    cmd.CommandText = "UPDATE users SET offline = " + offlineCount + " WHERE id = " + rowID;
+                //Will be used to store the value of toggled, since it is set to one when the entry is created, it is also assumed 1 here.
+                int canrun = 1;
+
+                //If there is no entry associated with the current server, make one. Otherwise, check tracking status.
+                if (!response.HasRows) {
+                    response.Close();
+                    cmd.CommandText = "INSERT or IGNORE INTO togglelist(serverid, toggled, whitelist) VALUES(@serverid, @toggled, @whitelist)";
+                    cmd.Parameters.AddWithValue("@serverid", guilds.Id);
+                    cmd.Parameters.AddWithValue("@toggled", 1); //Enabled set to ON
+                    cmd.Parameters.AddWithValue("@whitelist", 0); //Whitelist set to OFF
+                    cmd.ExecuteNonQuery();
+                } else {
+                    response.Read();
+                    canrun = response.GetInt32(2);
+                    response.Close();
+                }
+                
+                //Check to see if server tracking is disabled.
+                if (canrun != 0) {
+                    foreach(var user in guilds.Users) {
+                        if (!FinishedUsers.Contains(user.Id)) {
+                            cmd.CommandText = "SELECT * FROM users WHERE userid = " + user.Id;
+                            response = cmd.ExecuteReader();
+
+                            if (response.HasRows) {
+                                response.Read();
+                                //Save found information to variables
+                                int rowID = response.GetInt32(0);
+                                int userID = response.GetInt32(1);
+                                int onlineCount = response.GetInt32(2);
+                                int offlineCount = response.GetInt32(3);
+                                int started = response.GetInt32(4);
+                                int trackingStatus = response.GetInt32(5);
+                                response.Close();
+
+                                if (trackingStatus != 0) {
+                                    //Update the online/offline element in the database based on the user's current status.
+                                    cmd.CommandText = "";
+                                    if (user.Status.ToString().ToLower() != "offline") {
+                                        onlineCount += 1;
+                                        cmd.CommandText = "UPDATE users SET online = " + onlineCount + " WHERE id = " + rowID;
+                                    } else {
+                                        offlineCount += 1;
+                                        cmd.CommandText = "UPDATE users SET offline = " + offlineCount + " WHERE id = " + rowID;
+                                    }
+                                    //Check number of lines saved (testing variable)
+                                    linesChanged = cmd.ExecuteNonQuery();
                                 }
-                                //Check number of lines saved (testing variable)
+                            } else {
+                                //Create new entry in database for user.
+                                response.Close();
+                                cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
+                                cmd.Parameters.AddWithValue("@userid", user.Id);
+                                if (user.Status.ToString().ToLower() != "offline") {
+                                    cmd.Parameters.AddWithValue("@online", 1);
+                                    cmd.Parameters.AddWithValue("@offline", 0);
+                                } else {
+                                    cmd.Parameters.AddWithValue("@online", 0);
+                                    cmd.Parameters.AddWithValue("@offline", 1);
+                                }
+                                cmd.Parameters.AddWithValue("@started", 0);
+                                cmd.Parameters.AddWithValue("@trackingstatus", 1);
                                 linesChanged = cmd.ExecuteNonQuery();
                             }
-                        } else {
-                            //Create new entry in database for user.
-                            response.Close();
-                            cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
-                            cmd.Parameters.AddWithValue("@userid", user.Id);
-                            if (user.Status.ToString().ToLower() != "offline") {
-                                cmd.Parameters.AddWithValue("@online", 1);
-                                cmd.Parameters.AddWithValue("@offline", 0);
-                            } else {
-                                cmd.Parameters.AddWithValue("@online", 0);
-                                cmd.Parameters.AddWithValue("@offline", 1);
-                            }
-                            cmd.Parameters.AddWithValue("@started", 0);
-                            cmd.Parameters.AddWithValue("@trackingstatus", 1);
-                            linesChanged = cmd.ExecuteNonQuery();
+                            FinishedUsers.Add(user.Id);
                         }
-                        FinishedUsers.Add(user.Id);
                     }
                 }
             }
@@ -203,37 +248,15 @@ namespace QuillBot {
             // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
             var con = new SQLiteConnection(Global.DBLocation);
             SQLiteDataReader response;
-            String output = "";
+            //String output = "";
             con.Open();
 
             var cmd = new SQLiteCommand(con);
-            cmd.CommandText = "SELECT * FROM users WHERE userid = 272123456995196928";
 
-            response = cmd.ExecuteReader();
+            //INSERT CODE TO TEST BELOW HERE
+            //
+            //
 
-            response.Read();
-
-            Console.WriteLine("ID\tUser\t\t\tOnline\tOffline\tStarted\tStatus");
-            Console.WriteLine(response.GetInt32(0) + "\t" + response.GetInt64(1) + "\t" + response.GetInt32(2) + "\t" + response.GetInt32(3) + "\t" + response.GetInt32(4) +  "\t" + response.GetInt32(5));
-
-            int rowID = response.GetInt32(0);
-            int userID = response.GetInt32(1);
-            double onlineCount = response.GetInt32(2);
-            double offlineCount = response.GetInt32(3);
-            int started = response.GetInt32(4);
-            int trackingStatus = response.GetInt32(5);
-            response.Close();
-            con.Close();
-
-            double onlineTime = 100;
-
-            if (offlineCount != 0) {
-                onlineTime = onlineCount / (offlineCount + onlineCount);
-                onlineTime = onlineTime * 100;
-            }
-
-            output += "You have been online %" + onlineTime + " of the time since tracking started.";
-            Console.WriteLine(output);
         }
 
         private void PrintDatabase(SQLiteCommand cmd) {
@@ -247,6 +270,10 @@ namespace QuillBot {
             }
 
             response.Close();
+        }
+
+        private void CreateDBBackup() {
+            File.Copy(Global.DBLocation, Global.DBLocation + ".bak");
         }
     }
 }
