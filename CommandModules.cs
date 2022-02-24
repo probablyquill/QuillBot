@@ -1,6 +1,7 @@
 using Discord.Commands;
 using System.Data.SQLite;
 using Discord.WebSocket;
+using Discord;
 
 namespace QuillBot {
     public class MainModule : ModuleBase<SocketCommandContext> {
@@ -202,7 +203,7 @@ namespace QuillBot {
                 }
             //If not, is it me calling it?
             } else if ((Context.User.Id == 272123456995196928) && (user != null)){
-                cmd.CommandText = "DELETE FROM users WHERE userid = " + Context.User.Id;
+                cmd.CommandText = "DELETE FROM users WHERE userid = " + user.Id;
                 int reply = cmd.ExecuteNonQuery();
                 switch (reply) {
                     case 0:
@@ -221,9 +222,11 @@ namespace QuillBot {
             }
             return ReplyAsync(output);
         }
+        [RequireOwner]
         [Command("servertoggle")]
         [Summary("Toggle tracking inside of the current server.")]
         public Task ToggleServerTracking() {
+
             //Create database connection
             var con = new SQLiteConnection(Global.DBLocation);
             SQLiteDataReader response;
