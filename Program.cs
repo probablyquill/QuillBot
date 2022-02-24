@@ -163,32 +163,34 @@ namespace QuillBot {
                             int trackingStatus = response.GetInt32(5);
                             response.Close();
 
-                            //Update the online/offline element in the database based on the user's current status.
-                            cmd.CommandText = "";
-                            if (user.Status.ToString().ToLower() != "offline") {
-                                onlineCount += 1;
-                                cmd.CommandText = "UPDATE users SET online = " + onlineCount + " WHERE id = " + rowID;
+                            if (trackingStatus != 0) {
+                                //Update the online/offline element in the database based on the user's current status.
+                                cmd.CommandText = "";
+                                if (user.Status.ToString().ToLower() != "offline") {
+                                    onlineCount += 1;
+                                    cmd.CommandText = "UPDATE users SET online = " + onlineCount + " WHERE id = " + rowID;
+                                } else {
+                                    offlineCount += 1;
+                                    cmd.CommandText = "UPDATE users SET offline = " + offlineCount + " WHERE id = " + rowID;
+                                }
+                                //Check number of lines saved (testing variable)
+                                linesChanged = cmd.ExecuteNonQuery();
                             } else {
-                                offlineCount += 1;
-                                cmd.CommandText = "UPDATE users SET offline = " + offlineCount + " WHERE id = " + rowID;
+                                //Create new entry in database for user.
+                                response.Close();
+                                cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
+                                cmd.Parameters.AddWithValue("@userid", user.Id);
+                                if (user.Status.ToString().ToLower() != "offline") {
+                                    cmd.Parameters.AddWithValue("@online", 1);
+                                    cmd.Parameters.AddWithValue("@offline", 0);
+                                } else {
+                                    cmd.Parameters.AddWithValue("@online", 0);
+                                    cmd.Parameters.AddWithValue("@offline", 1);
+                                }
+                                cmd.Parameters.AddWithValue("@started", 0);
+                                cmd.Parameters.AddWithValue("@trackingstatus", 1);
+                                linesChanged = cmd.ExecuteNonQuery();
                             }
-                            //Check number of lines saved (testing variable)
-                            linesChanged = cmd.ExecuteNonQuery();
-                        } else {
-                            //Create new entry in database for user.
-                            response.Close();
-                            cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
-                            cmd.Parameters.AddWithValue("@userid", user.Id);
-                            if (user.Status.ToString().ToLower() != "offline") {
-                                cmd.Parameters.AddWithValue("@online", 1);
-                                cmd.Parameters.AddWithValue("@offline", 0);
-                            } else {
-                                cmd.Parameters.AddWithValue("@online", 0);
-                                cmd.Parameters.AddWithValue("@offline", 1);
-                            }
-                            cmd.Parameters.AddWithValue("@started", 0);
-                            cmd.Parameters.AddWithValue("@trackingstatus", 1);
-                            linesChanged = cmd.ExecuteNonQuery();
                         }
 
                         FinishedUsers.Add(user.Id);
@@ -204,7 +206,6 @@ namespace QuillBot {
             var con = new SQLiteConnection(UserDBLocation);
             SQLiteDataReader response;
             String output = "";
-            int linesChanged;
             con.Open();
 
             var cmd = new SQLiteCommand(con);
