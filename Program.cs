@@ -42,12 +42,7 @@ namespace QuillBot {
             //Generated a task and cancellation token which checks what servers the bot is in every X minutes.
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             Task timerTask = WaitFirst(PollUserStatus, TimeSpan.FromMinutes(.25), tokenSource.Token);
-            //CancellationTokenSource leagueBanToken = new CancellationTokenSource();
-            //Task leagueBanTask = GetGuilds(LeagueBanCheck, TimeSpan.FromMinutes(.5), leagueBanToken.Token);
-            //SQLiteTesting();
-            //Create backup every ten minutes.
-            //Task backupTask = WaitFirst(CreateDBBackup, TimeSpan.FromMinutes(10), tokenSource.Token);
-            //Wait indefinitely
+
             await Task.Delay(-1);
         }
 
@@ -109,8 +104,10 @@ namespace QuillBot {
                 foreach(var user in guild.Users) {
                     Boolean LeagueFound = false;
 
+                    //Iterate through list of user activities
                     foreach (var activity in user.Activities) {
                         if (activity.Name.ToLower() == "league of legends") {
+                            //If league is found in any (custom status will return as an activity)
                             LeagueFound = true;
                             if (WarnedUIDs.Contains(user.Id)) {
                                 Console.WriteLine("Banned " + user.DisplayName);
@@ -123,6 +120,7 @@ namespace QuillBot {
                         }
                     }
 
+                    //If not found, then make sure that they aren't on the bad list.
                     if (!LeagueFound) {
                         if (WarnedUIDs.Contains(user.Id)) {
                             WarnedUIDs.Remove(user.Id);
@@ -153,11 +151,11 @@ namespace QuillBot {
             //Users:
             // ID || User | Online | Offline | TimeTrackingStarted | Trackingstatus
             //    || INT  | INT    | INT     | INT                 | Boolean (INT 0 or 1)
-            //
+            //--------------------------------------------------------------------------
             //togglelist:
             // ID || serverid      | toggled | whitelist
             //    || INT           | BOOL    | BOOL
-            //
+            //--------------------------------------------------------------------------
             //id(serverID):
             // ID || channelid     | enabled
             //    || INT           | BOOL
@@ -247,7 +245,7 @@ namespace QuillBot {
             //Format:
             // Users | Online | Offline | TimeTrackingStarted | Trackingstatus
             var con = new SQLiteConnection(Global.DBLocation);
-            SQLiteDataReader response;
+            //SQLiteDataReader response;
             //String output = "";
             con.Open();
 
