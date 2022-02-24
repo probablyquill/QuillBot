@@ -93,11 +93,23 @@ namespace QuillBot {
                     hourtotal = hourtotal * 100;
                     int hourInt = (int) hourtotal;
                     hourtotal = (double) hourInt / 100;
+                    String measurement = "hours";
+
+                    //If less than one hour, read out in minutes instead.
+                    //Bad code
+                    if (hourtotal < 1) {
+                        hourtotal = hourtotal * 60;
+                        hourtotal = hourtotal * 100;
+                        hourInt = (int) hourtotal;
+                        hourtotal = (double) hourInt / 100;
+                        measurement = "minutes";
+                    }
+                    
                     //Message String
                     if (user == null) {
-                        output += "You have been online " + (int) onlineTime + "% of the time since tracking started, or approximately " + hourtotal + " hours.";
+                        output += "You have been online " + (int) onlineTime + "% of the time since tracking started, approximately " + hourtotal + " " + measurement + ".";
                     } else {
-                        output += "" + user.Username + " has been online " + (int) onlineTime + "% of the time since tracking started, or approximately " + hourtotal + " hours.";
+                        output += "" + user.Username + " has been online " + (int) onlineTime + "% of the time since tracking started, approximately " + hourtotal  + " " + measurement + ".";
                     }
                 } else {
                     if (user != null) {

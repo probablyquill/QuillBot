@@ -131,7 +131,6 @@ namespace QuillBot {
         }
         
         private void PollUserStatus() {
-            Console.WriteLine("Polling user status");
             List<ulong> FinishedUsers = new List<ulong>{};
             var con = new SQLiteConnection(DBLocation);
             SQLiteDataReader response;
