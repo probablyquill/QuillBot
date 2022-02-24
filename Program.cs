@@ -14,7 +14,7 @@ namespace QuillBot {
     class QuillBot {
         public static Task Main(string[] args) => new QuillBot().MainAsync();
         DiscordSocketClient _client = new DiscordSocketClient(new DiscordSocketConfig(){AlwaysDownloadUsers = true, GatewayIntents = GatewayIntents.All});
-
+        String DBLocation = @"URI=file:config/QuillBot.db";
         List<ulong> WarnedUIDs = new List<ulong>{};
         public async Task MainAsync() {
             //Load API auth Token from file.
@@ -131,8 +131,9 @@ namespace QuillBot {
         }
         
         private void PollUserStatus() {
+            Console.WriteLine("Polling user status");
             List<ulong> FinishedUsers = new List<ulong>{};
-            var con = new SQLiteConnection(Global.DBLocation);
+            var con = new SQLiteConnection(DBLocation);
             SQLiteDataReader response;
             int linesChanged = 0;
             con.Open();
@@ -174,24 +175,23 @@ namespace QuillBot {
                                 }
                                 //Check number of lines saved (testing variable)
                                 linesChanged = cmd.ExecuteNonQuery();
-                            } else {
-                                //Create new entry in database for user.
-                                response.Close();
-                                cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
-                                cmd.Parameters.AddWithValue("@userid", user.Id);
-                                if (user.Status.ToString().ToLower() != "offline") {
-                                    cmd.Parameters.AddWithValue("@online", 1);
-                                    cmd.Parameters.AddWithValue("@offline", 0);
-                                } else {
-                                    cmd.Parameters.AddWithValue("@online", 0);
-                                    cmd.Parameters.AddWithValue("@offline", 1);
-                                }
-                                cmd.Parameters.AddWithValue("@started", 0);
-                                cmd.Parameters.AddWithValue("@trackingstatus", 1);
-                                linesChanged = cmd.ExecuteNonQuery();
                             }
+                        } else {
+                            //Create new entry in database for user.
+                            response.Close();
+                            cmd.CommandText = "INSERT or IGNORE INTO users(userid, online, offline, started, trackingstatus) VALUES(@userid, @online, @offline, @started, @trackingstatus)";
+                            cmd.Parameters.AddWithValue("@userid", user.Id);
+                            if (user.Status.ToString().ToLower() != "offline") {
+                                cmd.Parameters.AddWithValue("@online", 1);
+                                cmd.Parameters.AddWithValue("@offline", 0);
+                            } else {
+                                cmd.Parameters.AddWithValue("@online", 0);
+                                cmd.Parameters.AddWithValue("@offline", 1);
+                            }
+                            cmd.Parameters.AddWithValue("@started", 0);
+                            cmd.Parameters.AddWithValue("@trackingstatus", 1);
+                            linesChanged = cmd.ExecuteNonQuery();
                         }
-
                         FinishedUsers.Add(user.Id);
                     }
                 }
