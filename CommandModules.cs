@@ -265,5 +265,21 @@ namespace QuillBot {
             return ReplyAsync(output);
             //TODO: Add user permission checking - require administrator to change.
         }
+        [RequireOwner]
+        [Command("whitelist")]
+        [Summary("Toggles whether whitelisting by channel is enabled in this server.")]
+        public Task toggleWhitelist() {
+            //Cast to long as that is what SQLite.GetInt64 returns
+            long serverid = (long) Context.Guild.Id;
+            String output = "";
+            if (Global.WhitelistList.Contains(serverid)) {
+                Global.RemoveFromWhitelist(serverid);
+                output += "Removed " + serverid + " from the whitelist.";
+            } else {
+                Global.AddToWhitelist(serverid);
+                output += "Added " + serverid + " to the whitelist.";
+            }
+            return ReplyAsync(output);
+        }
     }
 }

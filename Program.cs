@@ -26,7 +26,7 @@ namespace QuillBot {
                 System.Environment.Exit(1);
             }
 
-            //Global.loadFromFile();
+            Global.RetrieveWhitelist();
             
             //var _client = new DiscordSocketClient();
             var _commands = new CommandService();
