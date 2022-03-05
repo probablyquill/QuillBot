@@ -226,42 +226,20 @@ namespace QuillBot {
         [Command("servertoggle")]
         [Summary("Toggle tracking inside of the current server.")]
         public Task ToggleServerTracking() {
-
-            //Create database connection
-            var con = new SQLiteConnection(Global.DBLocation);
-            SQLiteDataReader response;
-            //int linesChanged;
-            con.Open();
-
-            //Connect to the database
-            var cmd = new SQLiteCommand(con);
+            int ToggleStatus = Global.ServerToggleDict[(long) Context.Guild.Id][0];
             String output = "";
 
-            cmd.CommandText = "SELECT * FROM togglelist WHERE serverid = " + Context.Guild.Id;
-            response = cmd.ExecuteReader();
-
-            //Store tracking status for output
-            int tracking = 1;
-            if (response.HasRows) {
-                response.Read();
-                int rowID = response.GetInt32(0);
-                tracking = response.GetInt32(2);
-                response.Close();
-
-                switch(tracking) {
-                    case 0:
-                        output += "Tracking for this server has been enabled.";
-                        tracking = 1;
-                        break;
-                    default:
-                        output += "Tracking for this server has been disabled.";
-                        tracking = 0;
-                        break;
-                }
-
-                cmd.CommandText = "UPDATE togglelist SET toggled = " + tracking + " WHERE serverid = " + Context.Guild.Id;
-                cmd.ExecuteNonQuery();
+            switch(ToggleStatus) {
+                case 0:
+                    Global.EnableServerTracking((long) Context.Guild.Id);
+                    output += "Enabled tracking for this server.";
+                    break;
+                default:
+                Global.DisableServerTracking((long) Context.Guild.Id);
+                    output += "Disabled tracking for this server.";
+                    break;
             }
+ 
             return ReplyAsync(output);
             //TODO: Add user permission checking - require administrator to change.
         }
@@ -272,7 +250,10 @@ namespace QuillBot {
             //Cast to long as that is what SQLite.GetInt64 returns
             long serverid = (long) Context.Guild.Id;
             String output = "";
-            if (Global.WhitelistList.Contains(serverid)) {
+
+            //ServerToggleDict has an array of integers stored ith the server long as they key.
+            //The array of ints is sorted as [toggled, whitelist], with 0 being false and 1 being true.
+            if (Global.ServerToggleDict[serverid][1] == 1) {
                 Global.RemoveFromWhitelist(serverid);
                 output += "Removed " + serverid + " from the whitelist.";
             } else {

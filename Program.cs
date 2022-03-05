@@ -173,16 +173,19 @@ namespace QuillBot {
                 int canrun = 1;
 
                 //If there is no entry associated with the current server, make one. Otherwise, check tracking status.
-                if (!response.HasRows) {
+                if (!Global.ServerToggleDict.ContainsKey((long) guilds.Id)) {
                     response.Close();
                     cmd.CommandText = "INSERT or IGNORE INTO togglelist(serverid, toggled, whitelist) VALUES(@serverid, @toggled, @whitelist)";
                     cmd.Parameters.AddWithValue("@serverid", guilds.Id);
                     cmd.Parameters.AddWithValue("@toggled", 1); //Enabled set to ON
                     cmd.Parameters.AddWithValue("@whitelist", 0); //Whitelist set to OFF
                     cmd.ExecuteNonQuery();
+
+                    //Creates a matching new entry in the global ToggleDict for data parity.
+                    Global.ServerToggleDict[(long) guilds.Id] = new int[]{1, 0};
                 } else {
-                    response.Read();
-                    canrun = response.GetInt32(2);
+                    //Retrievs the second item in the array associated with the guildID as a key, which is representetive of the whitelist.
+                    canrun = Global.ServerToggleDict[(long) guilds.Id][1];
                     response.Close();
                 }
                 
